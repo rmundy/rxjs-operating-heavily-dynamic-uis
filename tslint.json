@@ -1,0 +1,15 @@
+{
+  "defaultSeverity": "error",
+  "extends": ["tslint:recommended", "rxjs-tslint-rules"],
+  "jsRules": {},
+  "rules": {
+    "trailing-comma": false,
+    "max-line-length": [true, 120],
+    "arrow-parens": true,
+    "no-magic-numbers": true,
+    "object-literal-sort-keys": false,
+    "quotemark": [true, "single", "avoid-escape", "avoid-template"],
+    "interface-name": false
+  },
+  "rulesDirectory": []
+}

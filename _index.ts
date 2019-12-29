@@ -1,16 +1,16 @@
-import {Counter, CountDownState, ConterStateKeys} from './counter'
-import { merge} from 'rxjs'; 
-import { mapTo} from 'rxjs/operators';
+import { merge } from 'rxjs';
+import { mapTo } from 'rxjs/operators';
+import { CountDownState, Counter, CounterStateKeys } from './counter';
 
 // EXERCISE DESCRIPTION ==============================
 
 /**
- * Use `ConterStateKeys` for property names.
- * Explort the counterUI API by typing `counterUI.` somewhere. ;)
- * 
- * Implement all features of the counter: 
- * 1. Start, pause the counter. Then restart the counter with 0 (+)  
- * 2. Start it again from paused number (++) 
+ * Use `CounterStateKeys` for property names.
+ * Explore the counterUI API by typing `counterUI.` somewhere. ;)
+ *
+ * Implement all features of the counter:
+ * 1. Start, pause the counter. Then restart the counter with 0 (+)
+ * 2. Start it again from paused number (++)
  * 3. If Set to button is clicked set counter value to input value while counting (+++)
  * 4. Reset to initial state if reset button is clicked (+)
  * 5. If count up button is clicked count up, if count down button is clicked count down  (+)
@@ -21,28 +21,22 @@ import { mapTo} from 'rxjs/operators';
 
 // ==================================================================
 
-
-const initialConterState: CountDownState = {
-  isTicking: false, 
-  count: 0, 
-  countUp: true, 
-  tickSpeed: 200, 
-  countDiff:1
+const initialCounterState: CountDownState = {
+  isTicking: false,
+  count: 0,
+  countUp: true,
+  tickSpeed: 200,
+  countDiff: 1
 };
 
-const counterUI = new Counter(
-  document.body,
-  {
-    initialSetTo: initialConterState.count + 10,
-    initialTickSpeed: initialConterState.tickSpeed,
-    initialCountDiff: initialConterState.countDiff,
-  }
-);
+const multiple = 10;
 
-merge(
-  counterUI.btnStart$.pipe(mapTo(1)),
-  counterUI.btnPause$.pipe(mapTo(0)),
-)
-.subscribe(
-  s => counterUI.renderCounterValue(s)
+const counterUI = new Counter(document.body, {
+  initialSetTo: initialCounterState.count + multiple,
+  initialTickSpeed: initialCounterState.tickSpeed,
+  initialCountDiff: initialCounterState.countDiff
+});
+
+merge(counterUI.btnStart$.pipe(mapTo(1)), counterUI.btnPause$.pipe(mapTo(0))).subscribe((s) =>
+  counterUI.renderCounterValue(s)
 );
