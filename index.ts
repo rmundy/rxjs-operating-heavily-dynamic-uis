@@ -1,7 +1,6 @@
-import { combineLatest, merge, NEVER, Observable, Observer, pipe, Subject, timer, UnaryFunction } from 'rxjs';
+import { combineLatest, merge, NEVER, Observable, pipe, Subject, timer, UnaryFunction } from 'rxjs';
 import {
   distinctUntilChanged,
-  distinctUntilKeyChanged,
   map,
   mapTo,
   pluck,
@@ -12,6 +11,7 @@ import {
   tap,
   withLatestFrom
 } from 'rxjs/operators';
+
 import { CountDownState, Counter, CounterStateKeys, PartialCountDownState } from './counter';
 
 // EXERCISE DESCRIPTION ===================================================
@@ -56,7 +56,7 @@ const counterUI = new Counter(document.body, {
 // All our source observables are extracted into Counter class to hide away all the low leven bindings.
 // === STATE OBSERVABLES ==================================================
 const programmaticCommandSubject = new Subject<PartialCountDownState>();
-const counterCommands$ = merge(
+const counterCommands$ = merge<CountDownState>(
   counterUI.btnStart$.pipe(mapTo({ isTicking: true })),
   counterUI.btnPause$.pipe(mapTo({ isTicking: false })),
   counterUI.btnSetTo$.pipe(map((n) => ({ count: n }))),
@@ -81,7 +81,7 @@ const isTicking$ = counterState$.pipe(queryChange<CountDownState, boolean>(Count
 const tickSpeed$ = counterState$.pipe(queryChange<CountDownState, number>(CounterStateKeys.tickSpeed));
 const countDiff$ = counterState$.pipe(queryChange<CountDownState, number>(CounterStateKeys.countDiff));
 
-const counterUpdateTrigger$ = combineLatest([isTicking$, tickSpeed$]).pipe(
+const counterUpdateTrigger$ = combineLatest(isTicking$, tickSpeed$).pipe(
   switchMap(([isTicking, tickSpeed]) => (isTicking ? timer(0, tickSpeed) : NEVER))
 );
 

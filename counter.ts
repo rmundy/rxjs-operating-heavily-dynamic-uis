@@ -1,6 +1,7 @@
 import './style.scss';
 
-import { fromEvent, Observable, Subject } from 'rxjs';
+import { isNil } from 'ramda';
+import { EMPTY, fromEvent, Observable } from 'rxjs';
 import { map, mapTo, shareReplay, startWith, withLatestFrom } from 'rxjs/operators';
 
 export interface CounterConfig {
@@ -57,9 +58,83 @@ enum ElementIds {
 }
 
 export class Counter {
+  public btnStart$: Observable<ActionNames>;
+  public btnPause$: Observable<ActionNames>;
+  public btnUp$: Observable<ActionNames>;
+  public btnDown$: Observable<ActionNames>;
+  public btnReset$: Observable<ActionNames>;
+  public btnSetTo$: Observable<ActionNames>;
+
+  public inputTickSpeed$: Observable<number> = EMPTY;
+  public inputCountDiff$: Observable<number> = EMPTY;
+  public inputSetTo$: Observable<number> = EMPTY;
   private initialSetTo: number;
   private initialTickSpeed: number;
   private initialCountDiff: number;
+  private display: HTMLParagraphElement;
+  private setToInput: HTMLInputElement;
+  private tickSpeedInput: HTMLInputElement;
+  private countDiffInput: HTMLInputElement;
+
+  constructor(parent: HTMLElement, config?: CounterConfig) {
+    const oneSecondInMS = 1000;
+    this.initialTickSpeed = (config && config.initialTickSpeed) || oneSecondInMS;
+    this.initialSetTo = (config && config.initialSetTo) || 0;
+    this.initialCountDiff = (config && config.initialCountDiff) || 1;
+
+    parent.innerHTML = parent.innerHTML + this.viewHtml();
+
+    // getElements
+    this.display = document.getElementById(ElementIds.TimerDisplay) as HTMLParagraphElement;
+    this.setToInput = document.getElementById(ElementIds.InputSetTo) as HTMLInputElement;
+    this.tickSpeedInput = document.getElementById(ElementIds.InputTickSpeed) as HTMLInputElement;
+    this.countDiffInput = document.getElementById(ElementIds.InputCountDiff) as HTMLInputElement;
+
+    // setup observables
+    this.btnStart$ = getCommandObservableByElem(ElementIds.BtnStart, 'click', ActionNames.Start);
+    this.btnPause$ = getCommandObservableByElem(ElementIds.BtnPause, 'click', ActionNames.Pause);
+    this.btnUp$ = getCommandObservableByElem(ElementIds.BtnUp, 'click', ActionNames.Up);
+    this.btnDown$ = getCommandObservableByElem(ElementIds.BtnDown, 'click', ActionNames.Down);
+    this.btnReset$ = getCommandObservableByElem(ElementIds.BtnReset, 'click', ActionNames.Reset);
+
+    this.inputSetTo$ = getValueObservable(ElementIds.InputSetTo, 'input').pipe(startWith(this.initialSetTo));
+    this.inputTickSpeed$ = getValueObservable(ElementIds.InputTickSpeed, 'input').pipe(
+      startWith(this.initialTickSpeed)
+    );
+    this.inputCountDiff$ = getValueObservable(ElementIds.InputCountDiff, 'input').pipe(
+      startWith(this.initialCountDiff)
+    );
+
+    this.btnSetTo$ = getCommandObservableByElem(ElementIds.BtnSetTo, 'click', ActionNames.SetTo);
+  }
+
+  public renderCounterValue(count: number) {
+    if (this.display) {
+      this.display.innerHTML = count
+        .toString()
+        .split('')
+        .map(this.getDigit)
+        .join('');
+    }
+  }
+
+  public renderSetToInputValue = (value: string) => {
+    if (this.setToInput) {
+      this.setToInput.value = value.toString();
+    }
+  };
+
+  public renderTickSpeedInputValue = (value: number): void => {
+    if (this.tickSpeedInput) {
+      this.tickSpeedInput.value = value.toString();
+    }
+  };
+
+  public renderCountDiffInputValue = (value: number): void => {
+    if (this.countDiffInput) {
+      this.countDiffInput.value = value.toString();
+    }
+  };
 
   private viewHtml = (): string => `
     <div id="${ElementIds.TimerDisplay}" class="countdownHolder">
@@ -111,7 +186,7 @@ export class Counter {
       Tick Speed
     </label>
     <input id="${ElementIds.InputTickSpeed}" style="width:60px" type="number" min=0 value="${this.initialTickSpeed}"/>
- 
+
 <!-- I'm sorry for this, but I was lazy.. :) -->
     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
     <label>
@@ -120,109 +195,32 @@ export class Counter {
     <input id="${ElementIds.InputCountDiff}" style="width:60px" type="number" min=0 value="${this.initialCountDiff}"/>
     `;
 
-  private display: HTMLParagraphElement;
-
-  public renderCounterValue(count: number) {
-    if (this.display) {
-      this.display.innerHTML = count
-        .toString()
-        .split('')
-        .map(this.getDigit)
-        .join('');
-    }
-  }
-
-  private setToInput: HTMLInputElement;
-  public renderSetToInputValue = (value: string) => {
-    if (this.setToInput) {
-      this.setToInput.value = value.toString();
-    }
-  };
-
-  private tickSpeedInput;
-  public renderTickSpeedInputValue = (value: number): void => {
-    if (this.tickSpeedInput) {
-      this.tickSpeedInput.value = value.toString();
-    }
-  };
-
-  private countDiffInput;
-  public renderCountDiffInputValue = (value: number): void => {
-    if (this.countDiffInput) {
-      this.countDiffInput.value = value.toString();
-    }
-  };
-
-  public btnStart$: Observable<ActionNames>;
-  public btnPause$: Observable<ActionNames>;
-  public btnUp$: Observable<ActionNames>;
-  public btnDown$: Observable<ActionNames>;
-  public btnReset$: Observable<ActionNames>;
-  public btnSetTo$: Observable<number>;
-
-  public inputTickSpeed$: Observable<number>;
-  public inputCountDiff$: Observable<number>;
-  public inputSetTo$: Observable<number>;
-
-  constructor(parent: HTMLElement, config?: CounterConfig) {
-    this.initialTickSpeed = (config && config.initialTickSpeed) || 1000;
-    this.initialSetTo = (config && config.initialSetTo) || 0;
-    this.initialCountDiff = (config && config.initialCountDiff) || 1;
-
-    this.init(parent);
-  }
-
-  private init(parent: HTMLElement) {
-    parent.innerHTML = parent.innerHTML + this.viewHtml();
-
-    // getElements
-    this.display = document.getElementById(ElementIds.TimerDisplay) as HTMLParagraphElement;
-    this.setToInput = document.getElementById(ElementIds.InputSetTo) as HTMLInputElement;
-    this.tickSpeedInput = document.getElementById(ElementIds.InputTickSpeed) as HTMLInputElement;
-    this.countDiffInput = document.getElementById(ElementIds.InputCountDiff) as HTMLInputElement;
-
-    // setup observables
-    this.btnStart$ = getCommandObservableByElem(ElementIds.BtnStart, 'click', ActionNames.Start);
-    this.btnPause$ = getCommandObservableByElem(ElementIds.BtnPause, 'click', ActionNames.Pause);
-    this.btnUp$ = getCommandObservableByElem(ElementIds.BtnUp, 'click', ActionNames.Up);
-    this.btnDown$ = getCommandObservableByElem(ElementIds.BtnDown, 'click', ActionNames.Down);
-    this.btnReset$ = getCommandObservableByElem(ElementIds.BtnReset, 'click', ActionNames.Reset);
-
-    this.inputSetTo$ = getValueObservable(ElementIds.InputSetTo, 'input').pipe(startWith(this.initialSetTo));
-    this.inputTickSpeed$ = getValueObservable(ElementIds.InputTickSpeed, 'input').pipe(
-      startWith(this.initialTickSpeed)
-    );
-    this.inputCountDiff$ = getValueObservable(ElementIds.InputCountDiff, 'input').pipe(
-      startWith(this.initialCountDiff)
-    );
-
-    this.btnSetTo$ = getCommandObservableByElem(ElementIds.BtnSetTo, 'click', ActionNames.SetTo).pipe(
-      withLatestFrom(this.inputSetTo$, (_, i$) => i$)
-    );
-  }
-
-  private getDigit(d): string {
+  private getDigit(d: string): string {
     return `<span class="position">
             <span class="digit static">
               ${d}
             </span>
           </span>`;
   }
-
-  private getDigitDivider(): string {
-    return '<span class="countDiv"></span>';
-  }
 }
 
 function getCommandObservableByElem(elemId: string, eventName: string, command: ActionNames) {
-  return fromEvent(document.getElementById(elemId), eventName).pipe(mapTo(command));
+  const htmlInputElement: HTMLInputElement = document.getElementById(elemId) as HTMLInputElement;
+  return fromEvent(htmlInputElement, eventName).pipe(mapTo(command));
 }
 
 function getValueObservable(elemId: string, eventName: string): Observable<number> {
   const elem = document.getElementById(elemId);
-  return fromEvent(elem, eventName).pipe(
-    map((v) => v.target.value),
-    map((v) => parseInt(v, 10)),
-    shareReplay(1)
-  );
+  if (!isNil(elem)) {
+    return fromEvent(elem, eventName).pipe(
+      map((v: Event) => {
+        const htmlInputElement: HTMLInputElement = v.currentTarget as HTMLInputElement;
+        return htmlInputElement.value;
+      }),
+      map((value: string) => parseInt(value, 10)),
+      shareReplay(1)
+    );
+  }
+
+  return EMPTY;
 }
